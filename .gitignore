@@ -1,0 +1,15 @@
+.pio/
+__pycache__/
+hardware-backups/
+.local/
+include/secrets.h
+include/cute_clip.h
+.venv/
+*.bin
+*.elf
+*.map
+*.mp3
+*.wav
+*.pyc
+dist/
+*.zip
