@@ -116,6 +116,21 @@ Start with one cycle, then increase the count:
 .venv/Scripts/python.exe tools/hexapod.py stop
 ```
 
+### Talking Walk (Sarvam AI Voice)
+
+Spidey can speak funny commentary synchronized to its walking phases (using Sarvam AI `bulbul:v4-flash`):
+
+```powershell
+# Set your Sarvam API key once (saved to .local/sarvam.json, git-ignored)
+.venv/Scripts/python.exe tools/talking_walk.py --set-key "YOUR_SARVAM_KEY"
+
+# Walk with witty English spider commentary
+.venv/Scripts/python.exe tools/talking_walk.py --steps 10 --speed 100 --persona spidey
+
+# Walk with Hinglish comedy commentary
+.venv/Scripts/python.exe tools/talking_walk.py --steps 10 --speed 100 --persona desi
+```
+
 The runner centers servos individually on enable, runs 1–20 cycles, and maintains
 the heartbeat. **Enable sends a direct center command**; the MCU cannot know the
 actual position after an unpowered servo relaxes. Keep legs clear. The robot can

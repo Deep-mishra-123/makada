@@ -13,3 +13,5 @@ include/cute_clip.h
 *.pyc
 dist/
 *.zip
+
+CP210x_Driver/
