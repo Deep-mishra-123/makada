@@ -71,7 +71,7 @@ DIALOGUES = {
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', help='Board address; defaults to locally saved address')
-    parser.add_argument('--steps', type=int, default=10, choices=range(1, 21), help='Number of cycles (1-20)')
+    parser.add_argument('--steps', type=int, default=10, help='Number of cycles (can be >20, auto-batched)')
     parser.add_argument('--speed', type=int, default=100, choices=range(1, 101), help='Gait speed (1-100)')
     parser.add_argument('--persona', choices=['spidey', 'desi'], default='spidey', help='Voice personality')
     parser.add_argument('--api-key', help='Sarvam API key (overrides saved key)')
@@ -102,8 +102,16 @@ def main():
     chosen_done = random.choice(pool['done'])
     chosen_near = random.choice(pool['near_finish']) if args.steps >= 10 else None
 
+    total_steps = max(1, args.steps)
+    batches = []
+    rem = total_steps
+    while rem > 0:
+        b = min(rem, 20)
+        batches.append(b)
+        rem -= b
+
     # Pre-generate / fetch all speech clips before starting motion
-    print("🎙️ Preparing voice clips...")
+    print(f"🎙️ Preparing voice clips for {total_steps} steps (in {len(batches)} batches)...")
     prefetch_list = [chosen_start, chosen_mid, chosen_done]
     if chosen_near:
         prefetch_list.append(chosen_near)
@@ -118,9 +126,6 @@ def main():
         move_ms, settle_ms = int(fields['move_ms']), int(fields['settle_ms'])
         period_ms = move_ms + (100 - args.speed) * (max(move_ms, 8000) - move_ms) // 99
 
-        robot.command('CLEAR')
-        robot.command(f'ADD 100 100 {args.steps} {args.speed}')
-
         print("Centering joints...")
         for joint in (1, 2, 3):
             robot.command(f'ENABLE {joint}')
@@ -129,42 +134,49 @@ def main():
 
         # Trigger start speech as walk begins
         speaker.speak(chosen_start)
-        robot.command('RUN')
 
+        global_step = 0
+        mid_step = total_steps // 2
+        near_step = max(total_steps - 3, mid_step + 1)
         spoken_mid = False
         spoken_near = False
 
-        mid_step = args.steps // 2
-        near_step = max(args.steps - 2, mid_step + 1)
+        for batch_idx, batch_steps in enumerate(batches):
+            robot.command('CLEAR')
+            robot.command(f'ADD 100 100 {batch_steps} {args.speed}')
+            robot.command('RUN')
 
-        deadline = time.monotonic() + args.steps * 8 * (period_ms + settle_ms) / 1000 + 15
-        while time.monotonic() < deadline:
-            time.sleep(.4)
-            status = robot.command('STATUS')
+            deadline = time.monotonic() + batch_steps * 8 * (period_ms + settle_ms) / 1000 + 15
+            while time.monotonic() < deadline:
+                time.sleep(.4)
+                status = robot.command('STATUS')
 
-            # Parse current step number from status
-            step_val = 0
-            for part in status.split():
-                if part.startswith('step='):
-                    try:
-                        step_val = int(part.split('=')[1])
-                    except ValueError:
-                        pass
+                # Parse current step number from status
+                step_val = 0
+                for part in status.split():
+                    if part.startswith('step='):
+                        try:
+                            step_val = int(part.split('=')[1])
+                        except ValueError:
+                            pass
 
-            if not spoken_mid and step_val >= mid_step:
-                spoken_mid = True
-                speaker.speak(chosen_mid)
+                curr_total = global_step + step_val
+                if not spoken_mid and curr_total >= mid_step:
+                    spoken_mid = True
+                    speaker.speak(chosen_mid)
 
-            if chosen_near and not spoken_near and step_val >= near_step:
-                spoken_near = True
-                speaker.speak(chosen_near)
+                if chosen_near and not spoken_near and curr_total >= near_step:
+                    spoken_near = True
+                    speaker.speak(chosen_near)
 
-            if 'running=0 ' in status:
-                if 'action=1 ' not in status:
-                    raise RuntimeError('Motion stopped before completing the queue')
-                break
-        else:
-            raise TimeoutError('MCU gait did not finish within bounded duration')
+                if 'running=0 ' in status:
+                    if 'action=1 ' not in status:
+                        raise RuntimeError('Motion stopped before completing the queue')
+                    break
+            else:
+                raise TimeoutError('MCU gait did not finish within bounded duration')
+
+            global_step += batch_steps
 
         # Finish dialogue
         speaker.speak(chosen_done, block=True)
