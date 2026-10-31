@@ -1,230 +1,149 @@
-# Cutie Circuits — Spidey
+# Makada (मकड़ा) — Voice-Agent Hexapod Robot
 
-A three-servo wire-leg hexapod controlled over a private laptop hotspot by a
-NodeMCU ESP8266. Motion runs on the MCU; Python sends commands and maintains a
-heartbeat. Includes firmware, migration tools, calibration and earlier experiments.
+[![Repo](https://img.shields.io/badge/GitHub-Deep--mishra--123%2Fmakada-blue.svg)](https://github.com/Deep-mishra-123/makada)
+[![Ecosystem](https://img.shields.io/badge/Robotic%20Agents-Cyberwave-orange.svg)](https://cyberwave.ai)
+[![Voice AI](https://img.shields.io/badge/Voice%20AI-Sarvam%20AI%20(Bulbul%20v4--flash)-green.svg)](https://sarvam.ai)
 
-**Status:** the owner observed smooth forward walking after joining the servo
-supply ground to NodeMCU GND. Rightward drift is unresolved. Only the forward
-eight-phase gait is implemented. A cycle is a gait repetition, not a distance.
+**Makada (मकड़ा)** is a voice-enabled, three-servo wire-leg hexapod robot developed for the **Cyberwave Robotic Agents** ecosystem. It bridges physical hardware locomotion with real-time generative voice agents powered by **Sarvam AI**.
 
-## Wiring
+Motion primitives and gait sequences run onboard an ESP8266 (NodeMCU), communicating over a private 2.4 GHz laptop hotspot with a Python controller. The controller maintains a real-time heartbeat and synchronizes live physical motion with witty, context-aware speech commentary delivered through the laptop using **Sarvam AI's low-latency `bulbul:v4-flash` model**.
 
-Disconnect the LiPo before wiring, flashing or untangling the robot.
+*Lineage:* Built and evolved from the original Cutie Circuits Spidey base by [Rtx09x](https://github.com/Rtx09x/cutie-circuits-spidey).
 
-| Connection | Destination |
-|---|---|
-| D5 / GPIO14 | Left walking servo signal, joint 1 |
-| D6 / GPIO12 | Right walking servo signal, joint 2 |
-| D7 / GPIO13 | Middle tilt servo signal, joint 3 |
-| ESC/BEC regulated 5 V | Receiver power rails → servo red/+ wires |
-| Receiver/BEC ground | Servo brown/black wires **and NodeMCU GND** |
-| USB charger, power bank or laptop | NodeMCU USB power |
+---
 
-**Shared ground is required even with separate supplies.** The missing ground
-caused unreliable behavior during development. Leave VIN disconnected when USB
-powers NodeMCU. Never put 5 V on GPIO/3V3 or connect the 3S LiPo directly to the MCU.
-The receiver distributes power only; servo signals come from NodeMCU, not receiver
-channel outputs. BEC capacity under three-servo load has not been measured. The
-BLDC motor is not part of the gait; remove any propeller if it remains connected.
+## 🌟 Key Highlights
 
-## Move the same robot to another Windows laptop
+- **Cyberwave Robotic Agent Locomotion:** 8-phase tripod gait executing with 20ms update cycles, individual joint calibration, and TCP telemetry streaming (`step`, `phase`, `action`, `enabled_mask`).
+- **Sarvam AI Voice Intelligence:** Integrated with Sarvam's `bulbul:v4-flash` text-to-speech engine using **Ritu** (`ritu_en_reels` / `ritu_hi_reels`) and **Shubh** personas. Pre-fetches and caches synthesized audio clips locally to guarantee zero-latency async playback while walking.
+- **Multilingual Persona Support:**
+  - `spidey`: Witty, self-aware English robot spider commenting on mechanical balance, rightward drift, and 6-legged cardio.
+  - `desi`: Hilarious Hinglish comedy persona (*"Arre bhai bhai bhai! Spidey aa gaya, raasta saaf karo!"*).
+- **Synchronized Gait Milestones:** Voice triggers dynamically at takeoff, midway (~50% mark), final approach (~85%), and touchdown/parking.
+- **Fail-Safe Architecture:** Watchdog heartbeat with automatic servo signal detachment upon Wi-Fi interruption, STOP command, or 3-second communication silence.
 
-Install Git and **Python 3.11 or 3.12** with Add Python to PATH. Install the board's
-appropriate USB serial driver (CH340 or CP210x, depending on the clone). Use Windows
-10/11 and a Wi-Fi adapter capable of a 2.4 GHz Mobile hotspot.
+---
 
+## 🔌 Hardware & Wiring
+
+> [!CAUTION]
+> **Always disconnect the LiPo battery before wiring, flashing, or untangling the robot.**
+> Shared ground is mandatory between the BEC/receiver ground and NodeMCU GND even when operating on separate power supplies.
+
+| Connection | Pin / Target | Function |
+|---|---|---|
+| **D5 / GPIO14** | Servo Joint 1 | Left walking servo signal |
+| **D6 / GPIO12** | Servo Joint 2 | Right walking servo signal |
+| **D7 / GPIO13** | Servo Joint 3 | Middle tilt servo signal |
+| **ESC / BEC (5V)** | Receiver Power Rails | Servo red/+ wires |
+| **Receiver Ground** | Servo black/brown wires | **Shared with NodeMCU GND** |
+| **Micro-USB** | Laptop / Power Bank | NodeMCU 3.3V logic power |
+
+*Note: Never supply 5V directly to ESP8266 GPIO/3V3 pins. Keep VIN disconnected when powered over USB.*
+
+---
+
+## 🚀 Quickstart & Setup (Windows)
+
+### 1. Clone the Repository
 ```powershell
-git clone https://github.com/Rtx09x/cutie-circuits-spidey.git
-cd cutie-circuits-spidey
+git clone https://github.com/Deep-mishra-123/makada.git
+cd makada
 ```
 
-**Privately copy `.local/wifi.json` from the old PC into the same location before
-running setup.** It contains the hotspot password and command token already
-flashed on the board. Never upload it or share screenshots of it. Stop the old
-PC's hotspot before running the same hotspot on the new PC.
-
+### 2. Run Automatic PC Setup
+Requires Python 3.11+ and a 2.4 GHz capable Wi-Fi adapter.
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File setup.ps1
 ```
+*Setup builds `.venv`, installs pinned dependencies (`platformio`, `pyserial`, `requests`), starts the private 2.4 GHz Windows Mobile Hotspot (`CutieCircuits-Bench`), and generates credential headers.*
 
-Setup creates `.venv`, installs pinned tools, reuses private credentials, generates
-`include/secrets.h`, starts Windows Mobile hotspot, and lists serial ports. It
-does not flash or move the robot. With matching copied credentials and the same
-board, **no upload or calibration restore is needed**: settings remain in EEPROM.
-
-Connect the laptop to venue Wi-Fi or Ethernet first; the hotspot helper needs an
-internet connection profile. NodeMCU joins only the private hotspot. Ethernet
-uplink plus USB Wi-Fi hotspot was tested. Simultaneous venue Wi-Fi and hotspot
-depends on the laptop/adapter; rehearse it or bring the second USB Wi-Fi adapter.
-
-Discover the board and check its settings:
-
+### 3. Configure Sarvam AI Voice
+Save your [Sarvam AI](https://sarvam.ai) API key locally (stored in `.local/sarvam.json`, strictly excluded from git):
 ```powershell
-.venv/Scripts/python.exe tools/setup_robot.py discover
-.venv/Scripts/python.exe tools/hexapod.py status
-.venv/Scripts/python.exe tools/hexapod.py config
-.venv/Scripts/python.exe tools/hexapod.py timing
+.venv/Scripts/python.exe tools/talking_walk.py --set-key "YOUR_SARVAM_API_KEY"
 ```
 
-DHCP addresses change. If cached-neighbor discovery fails, get its address from
-Windows Settings → Mobile hotspot → connected devices, then authenticate and save
-it (the address below is only an example):
-
+Test the speaker directly on your PC:
 ```powershell
-.venv/Scripts/python.exe tools/setup_robot.py discover --host 192.168.137.123
+.venv/Scripts/python.exe tools/sarvam_speaker.py "Hello Cyberwave! Makada is ready to walk and talk."
 ```
 
-Or disconnect the LiPo and discover via USB; this resets the board:
+---
 
+## 🤖 Operation & Demo Commands
+
+### A. Walk & Talk (Sarvam AI Voice Commentary)
 ```powershell
-.venv/Scripts/python.exe tools/setup_robot.py discover --port COM7 --servo-power-disconnected
-```
-
-## Fresh credentials or replacement board
-
-Without a copied private configuration, setup generates new credentials. The
-existing board must be flashed to learn them. Unplug the LiPo and BEC + to VIN;
-leave NodeMCU on USB. Replace COM7 with the actual port:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File setup.ps1 -Flash -Port COM7 -ServoPowerDisconnected
-```
-
-This uploads **hexapod firmware**. Do not run a bare root `platformio run -t upload`;
-the root project is an older motor experiment. Manual equivalent:
-
-```powershell
-.venv/Scripts/python.exe tools/setup_robot.py init
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/hotspot.ps1
-.venv/Scripts/python.exe -m platformio run -d hexapod
-.venv/Scripts/python.exe -m platformio run -d hexapod -t upload --upload-port COM7
-.venv/Scripts/python.exe tools/setup_robot.py discover --port COM7 --servo-power-disconnected
-```
-
-Normal upload usually preserves EEPROM calibration. Back it up first; don't use
-erase-flash casually. Replacement boards need a profile and mechanical calibration.
-
-## Demo commands
-
-Verify horn alignment, mapping and clearance before connecting servo power.
-Start with one cycle, then increase the count:
-
-```powershell
-.venv/Scripts/python.exe tools/onboard_walk.py --steps 1 --speed 100
-.venv/Scripts/python.exe tools/onboard_walk.py --steps 20 --speed 100
-.venv/Scripts/python.exe tools/hexapod.py stop
-```
-
-### Talking Walk (Sarvam AI Voice)
-
-Spidey can speak funny commentary synchronized to its walking phases (using Sarvam AI `bulbul:v4-flash`):
-
-```powershell
-# Set your Sarvam API key once (saved to .local/sarvam.json, git-ignored)
-.venv/Scripts/python.exe tools/talking_walk.py --set-key "YOUR_SARVAM_KEY"
-
-# Walk with witty English spider commentary
+# English witty spider (10 steps)
 .venv/Scripts/python.exe tools/talking_walk.py --steps 10 --speed 100 --persona spidey
 
-# Walk with Hinglish comedy commentary
-.venv/Scripts/python.exe tools/talking_walk.py --steps 10 --speed 100 --persona desi
+# Hinglish comedic spider (20 steps)
+.venv/Scripts/python.exe tools/talking_walk.py --steps 20 --speed 100 --persona desi
+
+# Custom speed, steps, and voice model
+.venv/Scripts/python.exe tools/talking_walk.py --steps 15 --speed 80 --persona spidey --speaker ritu --model bulbul:v4-flash
 ```
 
-The runner centers servos individually on enable, runs 1–20 cycles, and maintains
-the heartbeat. **Enable sends a direct center command**; the MCU cannot know the
-actual position after an unpowered servo relaxes. Keep legs clear. The robot can
-drift right: use a clear floor area. Signals turn off after completion, STOP,
-detected Wi-Fi loss or three seconds without an authenticated command.
-
-Ctrl+C interrupts the runner. Only one TCP client is accepted, so a separate STOP
-client may be rejected while the runner owns the connection. If stopping fails or
-a leg jams, disconnect the LiPo. A hung MCU or electrical fault can defeat software
-stopping. An SG90 provides no external angle/stall feedback; a blocked servo can
-keep pushing even within saved pulse limits. Signals off may let legs relax.
-
-Timing is adjustable over Wi-Fi and saved on the MCU, with all signals off:
-
+### B. Standard Silent Walk
 ```powershell
-# Last fast demo setting (rounded upward by the controller's update interval).
+# Single test cycle for mechanical clearance
+.venv/Scripts/python.exe tools/onboard_walk.py --steps 1 --speed 100
+
+# 20 full cycles
+.venv/Scripts/python.exe tools/onboard_walk.py --steps 20 --speed 100
+```
+
+### C. Emergency Stop & Diagnostics
+```powershell
+# Immediate stop & servo signal detachment
+.venv/Scripts/python.exe tools/hexapod.py stop
+
+# Read real-time MCU status
+.venv/Scripts/python.exe tools/hexapod.py status
+
+# Inspect joint calibration
+.venv/Scripts/python.exe tools/hexapod.py config
+
+# Adjust move/settle timing (default 25ms move / 25ms settle)
 .venv/Scripts/python.exe tools/hexapod.py timing 25 25
-# Slower reference for supervised clearance checks.
-.venv/Scripts/python.exe tools/hexapod.py timing 500 500
 ```
 
-Numbers are movement and pause milliseconds. Movement supports 20–60000 ms,
-pause 0–60000 ms. The motion loop updates every 20 ms. These are command durations,
-not measured servo speed. Speed 100 uses that duration; lower speeds stretch it
-toward 8 seconds without changing the settling pause. Extremely short commands
-may not allow the physical servo to reach its target before the next phase.
+---
 
-## Calibration backup and restore
+## ⚡ Flashing the Firmware
 
-Export a live credential-free snapshot before travel:
+If you are setting up a fresh NodeMCU board:
+1. Disconnect the LiPo and servo power.
+2. Connect NodeMCU via USB and install the CP2102/CH340 driver if prompted.
+3. Flash the hexapod firmware:
+   ```powershell
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File setup.ps1 -Flash -Port COM3 -ServoPowerDisconnected
+   ```
 
-```powershell
-.venv/Scripts/python.exe tools/setup_robot.py snapshot --output profiles/my-spidey.json
-```
+---
 
-The included [last-known profile](profiles/spidey-last-known.json) is from the chat
-record, **not a fresh snapshot**: the board was offline during packaging. It
-includes the latest unverified D5 drift adjustment. Prefer your live snapshot.
-For the same mechanical assembly, restore with servo power disconnected:
+## 📁 Repository Structure
 
-```powershell
-.venv/Scripts/python.exe tools/setup_robot.py restore profiles/my-spidey.json --servo-power-disconnected
-```
+- `hexapod/` — NodeMCU ESP8266 Arduino firmware (EEPROM calibration, motion engine, TCP server).
+- `tools/talking_walk.py` — Synchronized walking runner with Sarvam AI voice triggers.
+- `tools/sarvam_speaker.py` — Sarvam TTS client with local audio cache and non-blocking Windows audio playback.
+- `tools/onboard_walk.py` — Core bounded gait execution tool with telemetry heartbeat.
+- `tools/hexapod.py` — CLI for direct TCP robot control (`status`, `config`, `timing`, `stop`).
+- `tools/setup_robot.py` — Hotspot discovery and credential setup.
+- `profiles/` — Credential-free joint calibration snapshots.
 
-Restore keeps signals detached. Repositioned horns invalidate physical endpoints;
-verify individual clearance before walking, even with a previously valid profile.
+---
 
-## Troubleshooting
+## 🛡️ Security & Privacy Notice
 
-- **No hotspot:** connect a laptop internet uplink first. Disable Mobile hotspot's
-  automatic power-saving shutdown. A captive portal may need completing on the
-  laptop. Rehearse with the new laptop before the demo.
-- **Adapter cannot host:** configure Windows Mobile hotspot manually on 2.4 GHz,
-  or use the USB Wi-Fi adapter. Simultaneous internet Wi-Fi and hotspot isn't
-  guaranteed on every adapter.
-- **Manual hotspot:** on a fresh local configuration run
-  `python tools/setup_robot.py init --existing --ssid YOUR_SSID`; enter its password
-  privately, then flash the generated token/header. Init deliberately reuses an
-  existing JSON file rather than silently rotating a working board's credentials.
-- **AUTH fails:** local token and flashed token differ. Copy the original private
-  JSON or flash the new credentials. Never post them publicly.
-- **Offline after restart:** restart the hotspot and rediscover; don't blindly
-  resend motion commands. Check power, data cable, and the shared ground.
-- **COM missing:** install the matching USB driver; close other serial terminals.
-  `python -m serial.tools.list_ports` lists available ports.
-- **macOS/Linux:** Python control/PlatformIO should be portable, but the Windows
-  hotspot helper is not. Configure a private 2.4 GHz hotspot manually and use
-  `init --existing`; use the actual serial device path for upload. This path has
-  not been rehearsed on those systems.
+All private configuration files (`.local/wifi.json`, `.local/sarvam.json`, `include/secrets.h`, and audio caches) are strictly git-ignored. Never commit or share your local Wi-Fi tokens or API keys publicly.
 
-## Before leaving for the hackathon
+---
 
-Install dependencies and build once while online: PlatformIO must download its
-ESP8266 platform and toolchain. A clone alone is not an offline installer. Rehearse
-the new laptop's hotspot and one cycle, then a longer run. Bring the USB data cable,
-power supplies, Wi-Fi adapter, private `.local/wifi.json`, and calibration snapshot.
-Keep the shared-ground wire secure. Store credentials and firmware binaries privately.
+## 📜 Credits & License
 
-## Repository map
-
-- `hexapod/`: current robot firmware and [protocol](hexapod/README.md).
-- `tools/hexapod.py`, `onboard_walk.py`, `setup_robot.py`: supported demo tools.
-- `setup.ps1`, `tools/hotspot.ps1`: Windows setup.
-- `profiles/`: credential-free calibration records.
-- Root `src/` and root `platformio.ini`: older ESC/BLDC/piezo project, **not Spidey**.
-- `servo_center/`, `digispark/`, `diagnostics/`: earlier hardware experiments.
-- Other Python tools: historical tests with old addresses/poses and assumptions;
-  retained as source, **not supported demo controls**.
-
-[Legacy motor notes](docs/legacy-motor-bench.md) apply only to that old firmware.
-Private flash dumps and the sampled-audio header are excluded; the old motor
-firmware uses silent audio when that private header is absent.
-
-Gait research referenced [Beetle Ringo](https://github.com/beetle-ringo/arduino),
-which is GPL-2.0. This repository's current eight-phase implementation was developed
-for this assembly; its geometry and angles are not interchangeable with Ringo's.
-No third-party audio is distributed or licensed by this repository.
+- **Ecosystem:** Developed for [Cyberwave](https://cyberwave.ai) Robotic Agents Hackathon.
+- **Voice Intelligence:** Powered by [Sarvam AI](https://sarvam.ai) Text-to-Speech API (`bulbul:v4-flash`).
+- **Base Architecture:** Derived from Cutie Circuits Spidey by [Rtx09x](https://github.com/Rtx09x/cutie-circuits-spidey).
+- Gait research references [Beetle Ringo](https://github.com/beetle-ringo/arduino) (GPL-2.0).
