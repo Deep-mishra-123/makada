@@ -142,6 +142,13 @@ def main():
         spoken_near = False
 
         for batch_idx, batch_steps in enumerate(batches):
+            status = robot.command('STATUS')
+            if 'enabled_mask=7' not in status:
+                for joint in (1, 2, 3):
+                    robot.command(f'ENABLE {joint}')
+                    time.sleep(.2)
+                    robot.command('PING')
+
             robot.command('CLEAR')
             robot.command(f'ADD 100 100 {batch_steps} {args.speed}')
             robot.command('RUN')
